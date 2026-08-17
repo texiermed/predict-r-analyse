@@ -1,0 +1,24 @@
+# Donnees (RGPD)
+*.xlsx
+*.csv
+*.xls
+data/
+
+# Sorties generees
+output/*.docx
+output/*.png
+output/*.pdf
+*.docx
+*.png
+*.pdf
+
+# R
+.Rhistory
+.RData
+.Rproj.user/
+*.Rproj
+
+# OS
+.DS_Store
+Thumbs.db
+~$*
