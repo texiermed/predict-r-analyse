@@ -28,6 +28,7 @@ predict-r-analyse/
 ├── cotation_predictr.R               # Cotation officielle Predict-R (barème)
 ├── generer_tableau_item_par_item.R   # Génération du tableau de concordance
 ├── generer_tableaux_sous_groupes.R   # Analyses en sous-groupes (âge, FDR)
+├── regenerer_tab4_fig4_strict.R      # Tableau 4 + Figure 4 (définition STRICTE)
 ├── scripts/                          # Pipeline modulaire
 │   ├── 00_run_all.R                  # Orchestrateur (lance tout le pipeline)
 │   ├── 01_codebook.R                 # Import, recodage, variables dérivées
@@ -49,6 +50,17 @@ predict-r-analyse/
 ## Reproductibilité
 
 Les scripts sont conçus pour être exécutés avec `scripts/00_run_all.R` (pipeline complet) ou individuellement. Chaque script charge automatiquement le codebook (`01_codebook.R`) au démarrage.
+
+### Deux définitions du dépistage complet
+
+Le dépôt contient volontairement **deux variantes** du calcul du niveau de dépistage. Les résultats du manuscrit ne sont reproductibles qu'en respectant cette répartition :
+
+| Script | Définition de `depistage_complet` | Alimente |
+|---|---|---|
+| `analyse_finale.R` | DFG + test urinaire **ou** suivi néphrologique | Tableaux 1, 2, 3, 5 à 12, Figures 2, 3, 5, 6 |
+| `regenerer_tab4_fig4_strict.R` | DFG + test urinaire **uniquement** (version retenue) | **Tableau 4 et Figure 4 du manuscrit** |
+
+`regenerer_tab4_fig4_strict.R` intègre également la correction de saisie sur `DM_DFG_disponible` (4 dossiers portant une valeur de DFG datée sans case cochée) : `DFG_evalue` y vaut `DM_DFG_disponible | DM_DFG_prescrit_non_realise | !is.na(DM_DFG_valeur)`. Exécuter `analyse_finale.R` seul redonne donc les valeurs antérieures à cette correction pour le Tableau 4 et la Figure 4.
 
 ### Environnement requis
 
@@ -74,10 +86,12 @@ install.packages(c(
 | IC des proportions | Wilson | `03_CJP.R` |
 | IC des performances diagnostiques | Clopper-Pearson | `06_performances.R` |
 | Concordance | Kappa de Cohen (IC asymptotique) + PABAK | `04_concordance_kappa.R` |
-| Comparaisons catégorielles | Test exact de Fisher / Chi² | `02_descriptif.R` |
-| Comparaison de médianes | Kruskal-Wallis | `02_descriptif.R` |
+| Comparaisons catégorielles | Test exact de Fisher (systématique) | `02_descriptif.R` |
+| Comparaison de médianes | Kruskal-Wallis (systématique) | `02_descriptif.R` |
 | Test du critère de jugement principal | Test binomial exact bilatéral | `03_CJP.R` |
-| Tendance par FDR | Test de Cochran-Armitage | `07_sous_groupes.R` |
+| Tendance par FDR | Test de Cochran-Armitage (`prop.trend.test`) | `07_sous_groupes.R` |
+
+Aucun test du Chi², de Student ou d'ANOVA n'est utilisé : toutes les variables qualitatives sont comparées par test exact de Fisher et toutes les variables quantitatives par Kruskal-Wallis, avec une description en médiane [Q1-Q3]. Aucune correction pour tests multiples n'a été appliquée, les analyses autres que le critère de jugement principal étant exploratoires.
 
 Toutes les analyses suivent le guide statistique pré-spécifié (approuvé par le CPP).
 

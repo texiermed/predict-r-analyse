@@ -136,6 +136,9 @@ predictr_dm <- predictr_dm |>
       c("Complet (DFG + urinaire)", "Suivi nephrologique")),
 
     # Gold standard KDIGO (OS6)
+    # La chronicite (>= 3 mois, >= 2 mesures concordantes) a ete verifiee
+    # manuellement dans Alma Pro par l'investigateur lors du recueil ; ce
+    # critere n'est pas trace dans le CRD et n'est donc pas recalcule ici.
     biologie_dispo = !is.na(DM_DFG_valeur) | !is.na(DM_RAC_valeur),
     MRC_KDIGO = case_when(
       !biologie_dispo                                     ~ NA_integer_,
@@ -541,7 +544,7 @@ fn <- tab_os6["PR-", "KDIGO+"]; vn <- tab_os6["PR-", "KDIGO-"]
 
 flex_os6 <- flextable(tableau5) |>
   set_caption(sprintf(
-    "Tableau 5. Performances diagnostiques de Predict-R vs anomalie biologique KDIGO (n = %d, exploratoire, mesure unique)",
+    "Tableau 5. Performances diagnostiques de Predict-R vs anomalie biologique KDIGO (n = %d, exploratoire)",
     nrow(os6))) |>
   autofit() |>
   theme_vanilla() |>
@@ -549,7 +552,7 @@ flex_os6 <- flextable(tableau5) |>
   bold(part = "header") |>
   align(j = 2:3, align = "center", part = "all") |>
   add_footer_lines(sprintf("Tableau 2x2 : VP = %d, FP = %d, FN = %d, VN = %d.", vp, fp, fn, vn)) |>
-  add_footer_lines("Anomalie biologique KDIGO : DFG < 60 mL/min/1,73 m² et/ou RAC ≥ 3 mg/mmol (mesure unique, chronicité non confirmée).") |>
+  add_footer_lines("Anomalie biologique KDIGO : DFG < 60 mL/min/1,73 m² et/ou RAC ≥ 3 mg/mmol. Chronicité (≥ 3 mois) vérifiée manuellement dans le dossier médical par l'investigateur lors du recueil (critère non tracé dans le CRD, donc non recalculable ici).") |>
   add_footer_lines("IC 95 % : méthode de Clopper-Pearson (epiR::epi.tests).") |>
   add_footer_lines("ATTENTION : biais de vérification. Analyse strictement exploratoire.")
 

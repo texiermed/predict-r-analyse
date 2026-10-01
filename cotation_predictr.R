@@ -4,6 +4,7 @@
 
 library(flextable)
 library(officer)
+library(here)
 
 cotation <- data.frame(
   N = 1:14,
@@ -73,6 +74,6 @@ sect <- prop_section(
                           header = 0.2, footer = 0.2)
 )
 
-save_as_docx(ft, path = "C:/Users/Alexis/Documents/Th\u00e8se/10 - Analyse R/output/tableaux/Cotation_PredictR.docx",
+save_as_docx(ft, path = here("output", "tableaux", "Cotation_PredictR.docx"),
              pr_section = sect)
 cat("Tableau cotation Predict-R corrige et sauvegarde.\n")

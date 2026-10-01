@@ -6,9 +6,10 @@ library(readxl)
 library(tidyverse)
 library(flextable)
 library(irr)
+library(here)
 
 # --- Import et filtre analysables ---
-d <- read_excel("C:/Users/Alexis/Documents/Thèse/10 - Analyse R/data/CRD_PredictRVF_data.xlsx",
+d <- read_excel(here("data", "CRD_PredictRVF_data.xlsx"),
                 sheet = "donnees", na = c("", "NA"))
 d <- d |> filter(!is.na(DM_repere))  # n = 130
 cat("n =", nrow(d), "patients analysables\n")
@@ -93,5 +94,5 @@ ft <- flextable(resultats) |>
   add_footer_lines("Kappa de Cohen ; \"-\" = variance insuffisante (prevalence nulle dans une source).") |>
   autofit()
 
-save_as_docx(ft, path = "C:/Users/Alexis/Documents/Thèse/10 - Analyse R/output/tableaux/Concordance_item_par_item.docx")
+save_as_docx(ft, path = here("output", "tableaux", "Concordance_item_par_item.docx"))
 cat("\nTableau sauvegarde : output/tableaux/Concordance_item_par_item.docx\n")
