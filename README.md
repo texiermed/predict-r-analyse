@@ -13,7 +13,7 @@ Predict-R est un autoquestionnaire numérique de repérage du risque de maladie 
 
 ## Correspondance manuscrit / scripts
 
-Chaque script est autonome : il lit la base, produit ses tableaux dans `output/tableaux/` et ses figures dans `output/figures/`. Les numéros ci-dessous sont ceux du manuscrit.
+Chaque script est autonome : il lit la base et écrit ses sorties dans `output/tableaux/` et `output/figures/`. Les numéros ci-dessous sont ceux du manuscrit.
 
 | Manuscrit | Script |
 |---|---|
