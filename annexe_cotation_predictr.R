@@ -5,6 +5,8 @@ library(flextable)
 library(officer)
 library(here)
 
+dir.create(here("output", "tableaux"), recursive = TRUE, showWarnings = FALSE)
+
 cotation <- data.frame(
   N = 1:14,
   Type = c(

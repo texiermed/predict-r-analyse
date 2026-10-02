@@ -7,6 +7,8 @@ library(flextable)
 library(irr)
 library(here)
 
+dir.create(here("output", "tableaux"), recursive = TRUE, showWarnings = FALSE)
+
 # --- Import et filtre analysables ---
 d <- read_excel(here("data", "CRD_PredictRVF_data.xlsx"),
                 sheet = "donnees", na = c("", "NA"))

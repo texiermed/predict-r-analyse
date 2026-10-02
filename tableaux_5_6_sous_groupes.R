@@ -13,6 +13,8 @@ library(here)
 library(DescTools)    # BinomCI (IC Wilson)
 library(flextable)
 
+dir.create(here("output", "tableaux"), recursive = TRUE, showWarnings = FALSE)
+
 set.seed(2026)
 
 # --- Formateurs français ---

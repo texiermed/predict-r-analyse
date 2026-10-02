@@ -5,6 +5,8 @@ library(flextable)
 library(officer)
 library(here)
 
+dir.create(here("output", "tableaux"), recursive = TRUE, showWarnings = FALSE)
+
 strobe <- data.frame(
   Item = c(
     "1a", "1b",

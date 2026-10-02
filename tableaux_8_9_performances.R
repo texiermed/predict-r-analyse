@@ -12,6 +12,8 @@ library(epiR)
 library(flextable)
 library(officer)
 
+dir.create(here("output", "tableaux"), recursive = TRUE, showWarnings = FALSE)
+
 set.seed(2026)
 
 frf <- function(...) gsub(".", ",", sprintf(...), fixed = TRUE)

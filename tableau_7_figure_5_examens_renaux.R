@@ -20,6 +20,9 @@ library(ggplot2)
 library(DescTools)
 library(here)
 
+dir.create(here("output", "tableaux"), recursive = TRUE, showWarnings = FALSE)
+dir.create(here("output", "figures"),  recursive = TRUE, showWarnings = FALSE)
+
 d <- read_xlsx(here("data", "CRD_PredictRVF_data.xlsx"), na = c("", "NA"))
 eq1 <- function(x) !is.na(x) & x == 1
 frf <- function(...) sprintf(...)

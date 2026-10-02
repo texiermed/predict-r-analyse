@@ -5,6 +5,8 @@ library(flextable)
 library(tidyverse)
 library(here)
 
+dir.create(here("output", "tableaux"), recursive = TRUE, showWarnings = FALSE)
+
 # --- Lecture des donnees ---
 sat_med <- read.csv(here("data", "satisfaction_medecin.csv"), fileEncoding = "UTF-8")
 n_sat <- nrow(sat_med)
