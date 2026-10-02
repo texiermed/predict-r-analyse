@@ -1,6 +1,5 @@
-# concordance_item_par_item.R
-# Tableau de concordance item par item : declaration Predict-R vs dossier medical
-# Placement : Annexe ou section 3.4 des Resultats
+# Annexe 16 du manuscrit : concordance item par item
+# Declaration du patient dans Predict-R vs codage dans le dossier medical.
 
 library(readxl)
 library(tidyverse)

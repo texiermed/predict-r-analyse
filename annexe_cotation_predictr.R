@@ -1,6 +1,5 @@
-# cotation_predictr.R
-# Tableau des items ponderes du score Predict-R (annexe)
-# Source : Cotation_PredictR.xlsx (capture ecran verifiee)
+# Annexe 3 du manuscrit : cotation du questionnaire Predict-R item par item
+# Source : bareme officiel Predict-R (14 items cotes / 16 questions).
 
 library(flextable)
 library(officer)

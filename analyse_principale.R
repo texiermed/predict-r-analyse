@@ -1,12 +1,18 @@
 # ============================================================================
-#  ANALYSE FINALE — Etude PREDICT-R
+#  ANALYSE PRINCIPALE — Etude PREDICT-R
 #  Alexis TEXIER — These de medecine generale
 #  Universite Toulouse III — Paul Sabatier
 #  Directrice : Dr Virginie SICRE GATIMEL
 #
-#  Script unique et reproductible.
-#  Base : CRD_PredictRVF_data.xlsx (139 inclus / 130 analysables DM)
-#  Produire tous les tableaux (.docx) et figures (.png) de la these.
+#  Base : data/CRD_PredictRVF_data.xlsx (139 inclus / 130 analysables DM)
+#
+#  Alimente le manuscrit : Tableaux 1, 2, 3, 4 et 10 ; Figures 3, 4 et 6.
+#  Les Tableaux 5 a 9, 11 et 12 et la Figure 5 sont produits par les scripts
+#  dedies (voir le tableau de correspondance du README).
+#
+#  Les sections 5 a 8 ci-dessous (depistage, performances, satisfaction) sont
+#  les versions de travail ; ce sont les scripts dedies qui ont ete retenus
+#  dans le manuscrit.
 #
 #  Usage : ouvrir le projet RStudio, puis Ctrl+A, Ctrl+Entree.
 #  Sortie : output/tableaux/*.docx  +  output/figures/*.png
@@ -368,7 +374,7 @@ tab_fdr_dep <- table(FDR = predictr_dm$au_moins_1_FDR,
 fisher_fdr_dep <- fisher.test(tab_fdr_dep)
 cat("Fisher FDR>=1 vs depistage complet : p =", format.pval(fisher_fdr_dep$p.value), "\n")
 
-# --- 4.4 Export Tableau 3 ----------------------------------------------------
+# --- 4.4 Export Tableaux 3 et 4 ---------------------------------------------
 tab_kappa_df <- tibble(
   Indicateur = c(
     "Concordance brute",
@@ -394,8 +400,8 @@ tab_kappa_df <- tibble(
 
 flex_conc <- flextable(tab_3x2_complet) |>
   set_caption(paste0(
-    "Tableau 3a. Concordance Predict-R / dossier médical ",
-    "— distribution croisée (n = 130)")) |>
+    "Tableau 3. Concordance entre Predict-R et le dossier médical ",
+    "(n = 130)")) |>
   autofit() |>
   theme_vanilla() |>
   bold(j = 1) |>
@@ -405,7 +411,7 @@ flex_conc <- flextable(tab_3x2_complet) |>
   add_footer_lines("Pourcentages calculés en ligne.")
 
 flex_kappa <- flextable(tab_kappa_df) |>
-  set_caption("Tableau 3b. Concordance — Kappa de Cohen et analyses complémentaires") |>
+  set_caption("Tableau 4. Kappa de Cohen et analyses complémentaires") |>
   autofit() |>
   theme_vanilla() |>
   bold(j = 1) |>
@@ -414,9 +420,9 @@ flex_kappa <- flextable(tab_kappa_df) |>
 save_as_docx(
   flex_conc,
   flex_kappa,
-  path = here("output", "tableaux", "Tableau3_concordance.docx")
+  path = here("output", "tableaux", "Tableaux3_4_concordance_kappa.docx")
 )
-cat("Tableau 3 sauvegarde.\n")
+cat("Tableaux 3 et 4 sauvegardes.\n")
 
 
 # ============================================================================
@@ -459,7 +465,7 @@ gradient <- predictr_dm |>
     .groups = "drop"
   )
 
-# --- 5.3 Export Tableau 4 ---
+# --- 5.3 Export Tableau 7 (version de travail) ---
 dep_df <- tibble(
   `Niveau de dépistage` = as.character(repartition_dep$depistage_niveau),
   n = repartition_dep$n,
@@ -467,7 +473,7 @@ dep_df <- tibble(
 )
 
 flex_dep <- flextable(dep_df) |>
-  set_caption("Tableau 4a. Niveau de dépistage de la MRC (n = 130)") |>
+  set_caption("Tableau 7 (version de travail). Niveau de dépistage de la MRC (n = 130)") |>
   autofit() |>
   theme_vanilla() |>
   bold(j = 1) |>
@@ -481,7 +487,7 @@ flex_dep <- flextable(dep_df) |>
     n_sg_dfg, n_sans_rac, n_sans_rac/n_sg_dfg*100))
 
 flex_grad <- flextable(gradient) |>
-  set_caption("Tableau 4b. Gradient de dépistage par catégorie de FDR HAS") |>
+  set_caption("Figure 5 (version de travail). Gradient de dépistage par catégorie de FDR HAS") |>
   autofit() |>
   theme_vanilla() |>
   bold(j = 1) |>
@@ -499,9 +505,9 @@ flex_grad <- flextable(gradient) |>
 save_as_docx(
   flex_dep,
   flex_grad,
-  path = here("output", "tableaux", "Tableau4_depistage.docx")
+  path = here("output", "tableaux", "Tableau7_depistage_version_de_travail.docx")
 )
-cat("Tableau 4 sauvegarde.\n")
+cat("Tableau 7 (version de travail) sauvegarde.\n")
 
 
 # ============================================================================
@@ -544,7 +550,7 @@ fn <- tab_os6["PR-", "KDIGO+"]; vn <- tab_os6["PR-", "KDIGO-"]
 
 flex_os6 <- flextable(tableau5) |>
   set_caption(sprintf(
-    "Tableau 5. Performances diagnostiques de Predict-R vs anomalie biologique KDIGO (n = %d, exploratoire)",
+    "Tableaux 8 et 9 (version de travail). Performances diagnostiques de Predict-R vs anomalie biologique KDIGO (n = %d, exploratoire)",
     nrow(os6))) |>
   autofit() |>
   theme_vanilla() |>
@@ -557,8 +563,9 @@ flex_os6 <- flextable(tableau5) |>
   add_footer_lines("ATTENTION : biais de vérification. Analyse strictement exploratoire.")
 
 save_as_docx(flex_os6,
-             path = here("output", "tableaux", "Tableau5_performances.docx"))
-cat("Tableau 5 sauvegarde.\n")
+             path = here("output", "tableaux",
+                         "Tableaux8_9_performances_version_de_travail.docx"))
+cat("Tableaux 8 et 9 (version de travail) sauvegardes.\n")
 
 
 # ============================================================================
@@ -608,7 +615,7 @@ tableau6 <- tibble(
 )
 
 flex_faisa <- flextable(tableau6) |>
-  set_caption("Tableau 6. Indicateurs de faisabilité de l'étude PREDICT-R") |>
+  set_caption("Tableau 10. Indicateurs de faisabilité de l'étude PREDICT-R") |>
   autofit() |>
   theme_vanilla() |>
   bold(j = 1) |>
@@ -621,8 +628,8 @@ flex_faisa <- flextable(tableau6) |>
     "comptabilisé (utilisation en autonomie)."))
 
 save_as_docx(flex_faisa,
-             path = here("output", "tableaux", "Tableau6_faisabilite.docx"))
-cat("Tableau 6 sauvegarde.\n")
+             path = here("output", "tableaux", "Tableau10_faisabilite.docx"))
+cat("Tableau 10 sauvegarde.\n")
 
 
 # ============================================================================
@@ -676,7 +683,8 @@ mt_non  <- sum(sat_pat[[8]] == "Non", na.rm = TRUE)
 
 flex_sat_pat <- flextable(tableau7a_rows) |>
   set_caption(sprintf(
-    "Tableau 7. Satisfaction des patients (n = %d)", n_sat_pat)) |>
+    "Tableau 11 (version de travail). Satisfaction des patients (n = %d)",
+    n_sat_pat)) |>
   autofit() |>
   theme_vanilla() |>
   bold(j = 1) |>
@@ -695,8 +703,9 @@ flex_sat_pat <- flextable(tableau7a_rows) |>
                             n_sat_pat, n_sat_pat/139*100))
 
 save_as_docx(flex_sat_pat,
-             path = here("output", "tableaux", "Tableau7_satisfaction_patient.docx"))
-cat("Tableau 7 sauvegarde.\n")
+             path = here("output", "tableaux",
+                         "Tableau11_satisfaction_patients_version_de_travail.docx"))
+cat("Tableau 11 (version de travail) sauvegarde.\n")
 
 # --- 8.2 Medecins (n = 9) ---------------------------------------------------
 sat_med <- read.csv(here("data", "satisfaction_medecin.csv"),
@@ -733,7 +742,8 @@ tableau8_rows <- map_dfr(items_med, function(item) {
 
 flex_sat_med <- flextable(tableau8_rows) |>
   set_caption(sprintf(
-    "Tableau 8. Satisfaction des médecins (n = %d)", n_sat_med)) |>
+    "Tableau 12 (version de travail). Satisfaction des médecins (n = %d)",
+    n_sat_med)) |>
   autofit() |>
   theme_vanilla() |>
   bold(j = 1) |>
@@ -744,20 +754,20 @@ flex_sat_med <- flextable(tableau8_rows) |>
   add_footer_lines("Aucune réponse négative (Plutôt pas / Pas du tout) sur l'ensemble des items.")
 
 save_as_docx(flex_sat_med,
-             path = here("output", "tableaux", "Tableau8_satisfaction_medecin.docx"))
-cat("Tableau 8 sauvegarde.\n")
+             path = here("output", "tableaux",
+                         "Tableau12_satisfaction_medecins_version_de_travail.docx"))
+cat("Tableau 12 (version de travail) sauvegarde.\n")
 
 
 # ============================================================================
 # 9. FIGURES
-# Figure 1 = diagramme de flux STROBE (cree hors script R, cf. 02-Redaction/)
 # ============================================================================
 
 couleurs_pr <- c("vert" = "#4CAF50", "orange" = "#FF9800", "rouge" = "#F44336")
 labels_pr  <- c("vert" = "Vert\n(faible)", "orange" = "Orange\n(modéré)", "rouge" = "Rouge\n(élevé)")
 
-# --- Figure 2 : Repartition des niveaux PR ----------------------------------
-fig2 <- predictr |>
+# --- Figure 3 : Repartition des niveaux PR ----------------------------------
+fig3_repartition <- predictr |>
   ggplot(aes(x = PR_couleur, fill = PR_couleur)) +
   geom_bar(width = 0.6) +
   geom_text(stat = "count", aes(label = after_stat(count)), vjust = -0.5, size = 5) +
@@ -774,11 +784,11 @@ fig2 <- predictr |>
   theme(legend.position = "none",
         panel.grid.major.x = element_blank())
 
-ggsave(here("output", "figures", "Figure2_repartition_PR.png"),
-       fig2, width = 6, height = 4.5, dpi = 300)
+ggsave(here("output", "figures", "Figure3_repartition_PR.png"),
+       fig3_repartition, width = 6, height = 4.5, dpi = 300)
 
-# --- Figure 3 : Age par niveau -----------------------------------------------
-fig3 <- predictr_dm |>
+# --- Figure 4 : Age par niveau -----------------------------------------------
+fig4_age <- predictr_dm |>
   ggplot(aes(x = PR_couleur, y = DM_age, fill = PR_couleur)) +
   geom_violin(alpha = 0.5, width = 0.8) +
   geom_boxplot(width = 0.15, fill = "white", outlier.shape = 21) +
@@ -793,11 +803,11 @@ fig3 <- predictr_dm |>
   theme_minimal(base_size = 13) +
   theme(legend.position = "none")
 
-ggsave(here("output", "figures", "Figure3_age_par_niveau.png"),
-       fig3, width = 6, height = 4.5, dpi = 300)
+ggsave(here("output", "figures", "Figure4_age_par_niveau.png"),
+       fig4_age, width = 6, height = 4.5, dpi = 300)
 
-# --- Figure 4 : Gradient de depistage par FDR HAS ---------------------------
-fig4_data <- predictr_dm |>
+# --- Figure 5 (version de travail) : gradient de depistage par FDR HAS ------
+fig5_data <- predictr_dm |>
   group_by(cat_FDR_HAS) |>
   summarise(
     `DFG évalué` = mean(DFG_evalue) * 100,
@@ -806,7 +816,7 @@ fig4_data <- predictr_dm |>
   ) |>
   pivot_longer(-cat_FDR_HAS, names_to = "Type", values_to = "pct")
 
-fig4 <- fig4_data |>
+fig5_travail <- fig5_data |>
   ggplot(aes(x = cat_FDR_HAS, y = pct, fill = Type)) +
   geom_col(position = position_dodge(0.7), width = 0.6) +
   geom_text(aes(label = sprintf("%.0f%%", pct)),
@@ -824,11 +834,11 @@ fig4 <- fig4_data |>
   theme_minimal(base_size = 13) +
   theme(legend.position = "top")
 
-ggsave(here("output", "figures", "Figure4_gradient_depistage.png"),
-       fig4, width = 7, height = 5, dpi = 300)
+ggsave(here("output", "figures", "Figure5_gradient_depistage_version_de_travail.png"),
+       fig5_travail, width = 7, height = 5, dpi = 300)
 
-# --- Figure 5 : Note satisfaction /10 ----------------------------------------
-fig5 <- tibble(note = notes_valides) |>
+# --- Figure 6 : Note satisfaction /10 ----------------------------------------
+fig6 <- tibble(note = notes_valides) |>
   ggplot(aes(x = factor(note))) +
   geom_bar(fill = "#5C9BD5", width = 0.7) +
   geom_text(stat = "count", aes(label = after_stat(count)), vjust = -0.5, size = 4) +
@@ -843,8 +853,8 @@ fig5 <- tibble(note = notes_valides) |>
   theme_minimal(base_size = 13) +
   theme(panel.grid.major.x = element_blank())
 
-ggsave(here("output", "figures", "Figure5_satisfaction_note.png"),
-       fig5, width = 6, height = 4, dpi = 300)
+ggsave(here("output", "figures", "Figure6_satisfaction_note.png"),
+       fig6, width = 6, height = 4, dpi = 300)
 
 
 # ============================================================================

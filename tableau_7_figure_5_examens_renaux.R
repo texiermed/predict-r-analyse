@@ -1,9 +1,9 @@
 # =============================================================================
-#  PREDICT-R - Tableau 4 et Figure 4, definition STRICTE du depistage complet
+#  PREDICT-R - Tableau 7 et Figure 5 (definition STRICTE du depistage complet)
 # =============================================================================
-#  C'est CETTE version qui alimente le Tableau 4 et la Figure 4 du manuscrit.
+#  C'est CETTE version qui alimente le Tableau 7 et la Figure 5 du manuscrit.
 #
-#  Deux differences volontaires avec `analyse_finale.R` :
+#  Deux differences volontaires avec `analyse_principale.R` :
 #   1. depistage_complet = DFG + test urinaire UNIQUEMENT (le suivi
 #      nephrologique n'est PAS compte comme un depistage complet) ;
 #   2. DFG_evalue integre `!is.na(DM_DFG_valeur)` : une valeur de DFG datee
@@ -55,7 +55,7 @@ predictr_dm <- d |> filter(!is.na(DM_repere)) |> mutate(
   depistage_complet = as.integer(depistage_niveau == "Complet (DFG + urinaire)")
 )
 
-# --- Tableau 4a : repartition globale ---
+# --- Tableau 7 du manuscrit : repartition globale ---
 repartition_dep <- predictr_dm |>
   count(depistage_niveau) |>
   mutate(`%` = frf("%.1f", n / sum(n) * 100))
@@ -77,7 +77,7 @@ n_sg_dfg <- nrow(sg_dfg)
 n_sans_rac <- sum(!sg_dfg$test_urinaire)
 
 flex_dep <- flextable(dep_df) |>
-  set_caption("Tableau 4a. Niveau de d\u00e9pistage de la MRC (n = 130)") |>
+  set_caption("Tableau 7. R\u00e9partition des examens r\u00e9naux dans le dossier m\u00e9dical (n = 130)") |>
   autofit() |>
   theme_vanilla() |>
   bold(j = 1) |>
@@ -90,7 +90,7 @@ flex_dep <- flextable(dep_df) |>
     "Occasion manqu\u00e9e : parmi les %d patients avec DFG \u00e9valu\u00e9 et \u22651 FDR, %d (%.1f %%) n'avaient pas de test urinaire associ\u00e9.",
     n_sg_dfg, n_sans_rac, n_sans_rac/n_sg_dfg*100))
 
-# --- Tableau 4b : gradient STRICT ---
+# --- Donnees chiffrees de la Figure 5 : gradient par categorie de FDR HAS ---
 tA <- predictr_dm |> group_by(cat_FDR_HAS) |>
   summarise(s = sum(DFG_evalue), n = n(), .groups = "drop")
 ptrend_dfg <- prop.trend.test(x = tA$s, n = tA$n)
@@ -118,7 +118,7 @@ gradient <- predictr_dm |>
 
 names(gradient) <- c("FDR HAS", "n", "DFG evalue (%)", "Depistage complet (%)")
 flex_grad <- flextable(gradient) |>
-  set_caption("Tableau 4b. Gradient de d\u00e9pistage par cat\u00e9gorie de FDR HAS") |>
+  set_caption("Gradient de d\u00e9pistage par cat\u00e9gorie de FDR HAS (donn\u00e9es de la Figure 5)") |>
   autofit() |>
   theme_vanilla() |>
   bold(j = 1) |>
@@ -134,11 +134,11 @@ flex_grad <- flextable(gradient) |>
     fmt_p_fr(fisher_fdr_dep$p.value), "."))
 
 save_as_docx(flex_dep, flex_grad,
-  path = here("output", "tableaux", "Tableau4_depistage_strict.docx"))
-cat("Tableau 4 (strict) sauvegarde.\n")
+  path = here("output", "tableaux", "Tableau7_examens_renaux.docx"))
+cat("Tableau 7 sauvegarde.\n")
 
-# --- Figure 4 : barres STRICTES ---
-fig4_data <- predictr_dm |>
+# --- Figure 5 du manuscrit ---
+fig5_data <- predictr_dm |>
   group_by(cat_FDR_HAS) |>
   summarise(
     DFG_eval = mean(DFG_evalue) * 100,
@@ -147,7 +147,7 @@ fig4_data <- predictr_dm |>
   ) |>
   pivot_longer(-cat_FDR_HAS, names_to = "Type", values_to = "pct")
 
-fig4 <- fig4_data |>
+fig5 <- fig5_data |>
   ggplot(aes(x = cat_FDR_HAS, y = pct, fill = Type)) +
   geom_col(position = position_dodge(0.7), width = 0.6) +
   geom_text(aes(label = sprintf("%.0f%%", pct)),
@@ -161,6 +161,6 @@ fig4 <- fig4_data |>
   theme_minimal(base_size = 13) +
   theme(legend.position = "top")
 
-ggsave(here("output", "figures", "Figure4_gradient_depistage_strict.png"),
-       fig4, width = 7, height = 5, dpi = 300)
-cat("Figure 4 (strict) sauvegardee.\n")
+ggsave(here("output", "figures", "Figure5_gradient_depistage.png"),
+       fig5, width = 7, height = 5, dpi = 300)
+cat("Figure 5 sauvegardee.\n")

@@ -106,16 +106,16 @@
 
 ---
 
-## Variables derivees (calculees dans `01_codebook.R`)
+## Variables derivees (calculees dans `analyse_principale.R`)
 
 | Variable | Formule | Usage |
 |---|---|---|
 | `age` | `ANNEE_ETUDE - DM_annee_naissance` | Tableau 1, sous-groupes |
 | `tranche_age` | < 40 / 40-60 / > 60 ans | Sous-groupes |
 | `nb_FDR_HAS` | Somme des 12 FDR HAS | Sous-groupes |
-| `cat_FDR_HAS` | 0 / 1-2 / >= 3 | Chi2 de tendance |
+| `cat_FDR_HAS` | 0 / 1-2 / >= 3 | Tendance de Cochran-Armitage |
 | `test_urinaire` | `RAC OR prot_creat OR microalbu OR BU_auto OR proteinurie` | Intermediaire |
-| `DFG_evalue` | `DM_DFG_disponible == 1 OR DM_DFG_prescrit_non_realise == 1` | Intermediaire |
+| `DFG_evalue` | `DM_DFG_disponible == 1 OR DM_DFG_prescrit_non_realise == 1` (+ `OR DM_DFG_valeur non vide` dans `tableau_7_figure_5_examens_renaux.R`) | Intermediaire |
 | `repere` | `(DFG_evalue AND test_urinaire) OR suivi_nephro` | Definition binaire stricte |
 | `rattrape` | `PR_couleur in {orange, rouge} AND repere == 0` | **CJP** |
 | `PR_bin` | 0 si vert, 1 si orange/rouge | Kappa, concordance |
