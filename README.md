@@ -30,12 +30,14 @@ Chaque script est autonome : il lit la base et écrit ses sorties dans `output/t
 
 ## Deux définitions du dépistage complet
 
-Le dépôt contient volontairement deux variantes du calcul du niveau de dépistage, et c'est le seul point d'attention pour reproduire les résultats :
+Le dépôt contient volontairement deux variantes du calcul du niveau de dépistage, et c'est le principal point d'attention pour reproduire les résultats :
 
 - `analyse_principale.R` compte le suivi néphrologique comme un dépistage complet ;
 - `tableau_7_figure_5_examens_renaux.R` ne retient que l'association DFG + test urinaire. **C'est cette définition stricte qui est celle du manuscrit** pour le Tableau 7 et la Figure 5.
 
 Ce second script intègre aussi une correction de saisie : quatre dossiers portaient une valeur de DFG datée dans la fenêtre d'analyse sans que la case `DM_DFG_disponible` ait été cochée. La variable y est donc définie comme `DM_DFG_disponible | DM_DFG_prescrit_non_realise | !is.na(DM_DFG_valeur)`. Exécuter `analyse_principale.R` seul redonne les valeurs antérieures à cette correction.
+
+Pour la même raison, `analyse_principale.R` produit encore ses propres versions du dépistage, des performances et de la satisfaction : ces sorties portent le suffixe `_version_de_travail` et ne sont pas celles du manuscrit.
 
 ## Méthodes statistiques
 
