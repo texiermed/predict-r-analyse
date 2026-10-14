@@ -1,23 +1,25 @@
 # ============================================================================
 #  ANALYSE PRINCIPALE — Etude PREDICT-R
 #  Alexis TEXIER — These de medecine generale
-#  Universite Toulouse III — Paul Sabatier
-#  Directrice : Dr Virginie SICRE GATIMEL
+#  Universite de Toulouse — Faculte de sante
+#  Directrice : Dr Virginie SICRE-GATIMEL
 #
 #  Base : data/CRD_PredictRVF_data.xlsx (139 inclus / 130 analysables DM)
 #
 #  Alimente le manuscrit : Tableaux 1, 2, 3, 4 et 10 ; Figures 3, 4 et 6.
+#  Les chiffres cites dans le texte des Resultats (sections 1 a 7, 11 et 12)
+#  sont imprimes en console.
 #  Les Tableaux 5 a 9, 11 et 12 et la Figure 5 sont produits par les scripts
 #  dedies (voir le tableau de correspondance du README).
 #
-#  Les sections 5 a 8 ci-dessous (depistage, performances, satisfaction) sont
-#  les versions de travail ; ce sont les scripts dedies qui ont ete retenus
+#  Les sections 5, 6 et 8 ci-dessous (depistage, performances, satisfaction)
+#  sont les versions de travail ; ce sont les scripts dedies qui ont ete retenus
 #  dans le manuscrit.
 #
 #  Usage : ouvrir le projet RStudio, puis Ctrl+A, Ctrl+Entree.
 #  Sortie : output/tableaux/*.docx  +  output/figures/*.png
 #
-#  Derniere execution : 18/07/2026
+#  Derniere execution : 14/10/2026
 # ============================================================================
 
 
@@ -34,6 +36,10 @@ library(psych)        # cohen.kappa (Kappa + IC 95 %)
 library(gtsummary)    # Tableau 1
 library(flextable)    # export Word
 library(epiR)         # epi.tests (Se/Sp/VPP/VPN)
+# gtsummary::add_p() (p-valeurs du Tableau 1) exige broom >= 1.0.8 ;
+# avec une version plus ancienne, la colonne p sort vide sans message d'erreur.
+if (packageVersion("broom") < "1.0.8")
+  stop("broom >= 1.0.8 requis par gtsummary::add_p() (p-valeurs du Tableau 1)")
 
 # Reproductibilite : graine pour simulations Monte Carlo (Fisher)
 set.seed(2026)
@@ -42,7 +48,7 @@ set.seed(2026)
 theme_gtsummary_language("fr", decimal.mark = ",", big.mark = " ")
 
 # Formateur francais : virgule decimale (Chazard)
-frf <- function(...) gsub(".", ",", sprintf(...), fixed = TRUE)
+frf <- function(...) gsub("([0-9])\\.([0-9])", "\\1,\\2", sprintf(...))
 
 # Formateur p-value francais (pas de notation scientifique dans Word)
 fmt_p_fr <- function(p) {
@@ -64,6 +70,11 @@ to_likert <- function(x) {
 
 dir.create(here("output", "tableaux"), recursive = TRUE, showWarnings = FALSE)
 dir.create(here("output", "figures"),  recursive = TRUE, showWarnings = FALSE)
+
+# Exports Google Forms de satisfaction (non diffuses) : sections 8 et Figure 6
+f_sat_pat <- here("data", "satisfaction_patient.csv")
+f_sat_med <- here("data", "satisfaction_medecin.csv")
+sat_dispo <- file.exists(f_sat_pat) && file.exists(f_sat_med)
 
 cat("\n=========================================\n")
 cat("  ANALYSE PREDICT-R — PIPELINE COMPLET\n")
@@ -99,6 +110,15 @@ predictr <- predictr |>
 # N'affecte pas le CJP (DM_repere = 1 deja correct).
 predictr <- predictr |>
   mutate(DM_RAC = if_else(id_patient == "PRED134", 1, DM_RAC))
+
+# --- 1.3 bis Correction documentee MRC connues (validee le 10/10/2026) ------
+# PRED001, PRED071, PRED129 : albuminurie persistante (2e RAC >= 3 mg/mmol a
+# plus de 3 mois, verifie dans le dossier par l'investigateur) -> MRC connue
+# selon la definition de la Methode (5 -> 8 MRC connues).
+mrc_alb <- c("PRED001", "PRED071", "PRED129")
+predictr <- predictr |>
+  mutate(DM_MRC_connue  = if_else(id_patient %in% mrc_alb, 1, DM_MRC_connue),
+         DM_MRC_critere = if_else(id_patient %in% mrc_alb, "alb_persistante", DM_MRC_critere))
 
 # --- 1.4 Filtre analysables DM (n = 130) ------------------------------------
 predictr_dm <- predictr |> filter(!is.na(DM_repere))
@@ -168,6 +188,48 @@ cat("MRC connues total :", sum(predictr_dm$DM_MRC_connue == 1, na.rm = TRUE), "\
 cat("MRC connues parmi orange/rouge :", sum(predictr_dm$PR_bin == 1 & predictr_dm$DM_MRC_connue == 1, na.rm = TRUE), "\n")
 cat("\n")
 
+# --- 1.6 Diagramme de flux (Figure 2) et repartition Predict-R (Resultats 1 et 2)
+# Valeurs des exports Maiia et HEKO (non diffuses), figees ici une seule fois.
+flux <- c(rdv = 908, non_honores = 175, teleconsult = 13, endocrino = 123,
+          rdv_mineurs = 81, heko_initiees = 155, jamais_activees = 11,
+          heko_activees = 144, avec_questionnaire = 143, inexploitables = 4,
+          interrompus = 3, interrompus_etape_BU = 2, sans_questionnaire = 1,
+          mineur_exclu = 1)
+stopifnot(
+  flux[["rdv"]] - flux[["non_honores"]] - flux[["teleconsult"]] -
+    flux[["endocrino"]] - flux[["rdv_mineurs"]] == 516,
+  flux[["heko_initiees"]] - flux[["jamais_activees"]] == flux[["heko_activees"]],
+  flux[["heko_activees"]] - flux[["sans_questionnaire"]] == flux[["avec_questionnaire"]],
+  flux[["interrompus"]] + flux[["sans_questionnaire"]] == flux[["inexploitables"]],
+  flux[["heko_activees"]] - flux[["inexploitables"]] - flux[["mineur_exclu"]] == nrow(predictr)
+)
+cat("Flux Maiia :", flux[["rdv"]], "RDV ->", flux[["rdv"]] - flux[["non_honores"]], "honores ->",
+    flux[["rdv"]] - flux[["non_honores"]] - flux[["teleconsult"]], "physiques ->",
+    flux[["rdv"]] - flux[["non_honores"]] - flux[["teleconsult"]] - flux[["endocrino"]], "MG ->",
+    flux[["rdv"]] - flux[["non_honores"]] - flux[["teleconsult"]] - flux[["endocrino"]] -
+      flux[["rdv_mineurs"]], "eligibles\n")
+cat("Inclusions du", format(min(predictr$date_inclusion), "%d/%m/%Y"), "au",
+    format(max(predictr$date_inclusion), "%d/%m/%Y"),
+    "; inclus :", nrow(predictr),
+    "; questionnaire complete apres l'evenement (24-30 mai) :",
+    sum(predictr$date_inclusion > as.Date("2026-05-22")),
+    "; exclus (HEKO) :", flux[["heko_activees"]] - nrow(predictr),
+    "; sans dossier medical :", sum(is.na(predictr$DM_repere)),
+    "; analysables :", nrow(predictr_dm), "\n")
+distrib_pr <- function(x) {
+  t <- table(x)
+  paste0(names(t), " ", t, " (", frf("%.1f", 100 * prop.table(t)), " %)", collapse = " ; ")
+}
+cat("Predict-R, 139 inclus :", distrib_pr(predictr$PR_couleur),
+    "; a risque", sum(predictr$PR_bin), frf("(%.1f %%)", 100 * mean(predictr$PR_bin)), "\n")
+cat("Predict-R, 130 analysables :", distrib_pr(predictr_dm$PR_couleur),
+    "; a risque", sum(predictr_dm$PR_bin), frf("(%.1f %%)", 100 * mean(predictr_dm$PR_bin)), "\n")
+cat("Niveau Predict-R des 9 non analysables :\n")
+print(table(predictr$PR_couleur[is.na(predictr$DM_repere)]))
+cat("Reperes :", sum(predictr_dm$DM_repere == 1), frf("(%.1f %%)", 100 * mean(predictr_dm$DM_repere == 1)),
+    "; non reperes :", sum(predictr_dm$DM_repere == 0),
+    frf("(%.1f %%)", 100 * mean(predictr_dm$DM_repere == 0)), "\n\n")
+
 
 # ============================================================================
 # 2. TABLEAU 1 — Caracteristiques de la population (OS2)
@@ -197,7 +259,7 @@ tableau1 <- predictr_dm |>
       DM_tabagisme         ~ "Tabagisme",
       DM_dyslipidemie      ~ "Dyslipidémie",
       cat_FDR_HAS          ~ "Nombre de FDR HAS",
-      DM_repere            ~ "Repéré dans le dossier",
+      DM_repere            ~ "Repéré dans le dossier médical",
       DM_MRC_connue        ~ "MRC déjà connue",
       DM_DFG_valeur        ~ "DFG estimé (mL/min/1,73 m²)"
     ),
@@ -214,10 +276,22 @@ tableau1 <- predictr_dm |>
   add_overall() |>
   bold_labels() |>
   modify_spanning_header(all_stat_cols() ~ "**Niveau de risque Predict-R**") |>
+  modify_header(stat_1 ~ "**Vert**  \nN = {n}", stat_2 ~ "**Orange**  \nN = {n}",
+                stat_3 ~ "**Rouge**  \nN = {n}") |>
   modify_caption(
-    "**Tableau 1.** Caractéristiques des patients selon le niveau de risque Predict-R (n = 130)"
+    "**Tableau 1.** Caractéristiques sociodémographiques et cliniques des 130 patients analysables selon le niveau de risque Predict-R"
   ) |>
-  modify_footnote(everything() ~ "9 patients sans dossier médical disponible exclus (n total inclus = 139).")
+  # appel de note sur la seule colonne Total (comme dans le manuscrit)
+  modify_footnote(everything() ~ NA) |>
+  modify_footnote(stat_0 ~ "9 patients sans dossier médical disponible exclus (n total inclus = 139).") |>
+  # Absence de DFG = pas de DFG dans la fenetre (depuis le 01/01/2025), pas une donnee manquante
+  modify_table_body(~ .x |> mutate(label = if_else(
+    variable == "DM_DFG_valeur" & row_type == "missing", "Pas de DFG depuis janvier 2025", label))) |>
+  modify_source_note(paste("Variables continues : médiane [Q1 ; Q3], test de Kruskal-Wallis.",
+                           "Variables catégorielles : n (%), test exact de Fisher.")) |>
+  modify_source_note(sprintf("Données complètes pour toutes les variables, sauf l'IMC déclaré (%d manquant).",
+                             sum(is.na(predictr_dm$PR_IMC)))) |>
+  modify_source_note("Toutes les variables proviennent du dossier médical, sauf l'IMC, déclaré dans Predict-R.")
 
 tableau1 |>
   as_flex_table() |>
@@ -237,6 +311,8 @@ ic_cjp <- BinomCI(n_rat, n_or, method = "wilson")
 cat("\n--- CJP ---\n")
 cat("Rattrapes :", n_rat, "/", n_or, "=",
     round(n_rat / n_or * 100, 1), "%\n")
+cat("Reperes parmi les orange/rouge :", n_or - n_rat, "/", n_or, "=",
+    round((n_or - n_rat) / n_or * 100, 1), "%\n")
 cat("IC 95 % Wilson : [", round(ic_cjp[2] * 100, 1), "-",
     round(ic_cjp[3] * 100, 1), "]\n")
 
@@ -263,49 +339,49 @@ if (nrow(hors_fenetre) > 0) {
 }
 
 # --- Tableau 2 : CJP ---
-fmt_ic <- function(lo, hi) frf("[%.1f - %.1f]", lo * 100, hi * 100)
+fmt_ic <- function(lo, hi) frf("[%.1f ; %.1f]", lo * 100, hi * 100)
+excl_mrc <- predictr_dm |> filter(PR_bin == 1, DM_MRC_connue == 1)
+cat("Sensibilite : orange/rouge avec MRC connue exclus =", nrow(excl_mrc),
+    "(dont reperes :", sum(excl_mrc$DM_repere == 1), ")\n")
+cat("Sans MRC connue :", r2, "/", n2, "=", round(r2 / n2 * 100, 1), "% ; IC Wilson [",
+    round(ic2[2] * 100, 1), ";", round(ic2[3] * 100, 1), "]\n")
+
+cat("Fenetre 24 mois : tous les DFG datent de < 24 mois (",
+    format(range_dfg[1], "%d/%m/%Y"), "-", format(range_dfg[2], "%d/%m/%Y"),
+    "), CJP inchange\n")
 
 tableau2 <- tibble(
   Analyse = c("Principale (tous orange/rouge)",
-              "Sans MRC connue",
-              paste0("Fenêtre 24 mois")),
-  `n` = c(n_or, n2, n_or),
-  `Rattrapés` = c(n_rat, r2, n_rat),
+              "Sans MRC connue"),
+  `n` = c(n_or, n2),
+  `Rattrapés` = c(n_rat, r2),
   `%` = c(frf("%.1f", n_rat/n_or*100),
-          frf("%.1f", r2/n2*100),
-          frf("%.1f", n_rat/n_or*100)),
-  `IC 95 % Wilson` = c(fmt_ic(ic_cjp[2], ic_cjp[3]),
-                        fmt_ic(ic2[2], ic2[3]),
-                        "= principale"),
+          frf("%.1f", r2/n2*100)),
+  `IC 95 %` = c(fmt_ic(ic_cjp[2], ic_cjp[3]),
+                fmt_ic(ic2[2], ic2[3])),
   `p (vs 10 %)` = c(fmt_p_fr(p_vals[1]),
                      fmt_p_fr(binom.test(r2, n2, p = 0.10,
-                            alternative = "two.sided")$p.value),
-                     "= principale")
+                            alternative = "two.sided")$p.value))
 )
 
 flex_cjp <- flextable(tableau2) |>
   set_caption(paste0(
     "Tableau 2. Critère de jugement principal — ",
-    "proportion de patients rattrapés par Predict-R et analyses de sensibilité")) |>
+    "proportion de patients rattrapés par Predict-R et analyse de sensibilité")) |>
   autofit() |>
   theme_vanilla() |>
   bold(j = 1) |>
   bold(part = "header") |>
   align(j = 2:6, align = "center", part = "all") |>
   add_footer_lines(paste0(
-    "Rattrapés = patients orange/rouge non repérés dans le dossier. ",
-    "IC Wilson sans correction. Test binomial exact bilatéral (H0 : p = 0,10).")) |>
+    "Rattrapés = patients orange/rouge non repérés dans le dossier médical. ",
+    "IC Wilson. Test binomial exact bilatéral (H0 : p = 10 %).")) |>
   add_footer_lines(paste0(
     "Robustesse du seuil : significatif à 20 % (p ",
     fmt_p_fr(p_vals[2]), "), 30 % (p ",
     fmt_p_fr(p_vals[3]), "), 40 % (p ",
     fmt_p_fr(p_vals[4]), "), 50 % (p = ",
-    frf("%.3f", p_vals[5]), ").")) |>
-  add_footer_lines(paste0(
-    "Fenêtre 24 mois : tous les DFG datent de < 24 mois (",
-    format(range_dfg[1], "%d/%m/%Y"), " - ",
-    format(range_dfg[2], "%d/%m/%Y"),
-    "), CJP inchangé."))
+    frf("%.3f", p_vals[5]), ")."))
 
 save_as_docx(flex_cjp,
              path = here("output", "tableaux", "Tableau2_CJP.docx"))
@@ -325,7 +401,7 @@ tab_3x2 <- predictr_dm |>
 
 tab_3x2_fmt <- tab_3x2 |>
   mutate(
-    `Predict-R` = as.character(PR_couleur),
+    `Predict-R` = str_to_title(as.character(PR_couleur)),
     `Non repéré, n (%)` = frf("%d (%.1f %%)", `Non repéré`,
                                   `Non repéré` / Total * 100),
     `Repéré, n (%)`     = frf("%d (%.1f %%)", `Repéré`,
@@ -361,12 +437,47 @@ cat("Verification Kappa : psych =", round(kappa_val, 4), "/ irr =", round(kappa_
 # PABAK (sensibilite — corrige le biais de prevalence du Kappa)
 pabak <- 2 * accord - 1
 
+landis_koch <- function(k) as.character(cut(k, c(-Inf, 0, .20, .40, .60, .80, 1),
+  labels = c("Désaccord", "Accord très faible", "Accord faible", "Accord modéré",
+             "Accord fort", "Accord presque parfait")))
+cat("Concordants :", tab_2x2["0", "0"] + tab_2x2["1", "1"], "/", sum(tab_2x2),
+    "; accord =", round(accord * 100, 1), "%\n")
+cat("A risque non reperes :", tab_2x2["1", "0"], "(",
+    round(tab_2x2["1", "0"] / sum(tab_2x2) * 100, 1), "% des", sum(tab_2x2),
+    ") ; verts reperes :", tab_2x2["0", "1"], "\n")
+cat("Kappa =", round(kappa_val, 3), landis_koch(kappa_val), "; PABAK =", round(pabak, 3), landis_koch(pabak), "\n")
+verts_reperes <- predictr_dm |> filter(PR_bin == 0, DM_repere == 1)
+cat("Verts reperes avec >= 1 FDR HAS :", sum(verts_reperes$nb_FDR_HAS >= 1), "/", nrow(verts_reperes), "\n")
+print(as.data.frame(verts_reperes |> select(id_patient, DM_sexe, nb_FDR_HAS, DM_HTA, PR_HTA,
+  DM_MCV, PR_MCV, DM_maladie_auto_immune, DM_obesite, DM_patho_uro, DM_ATCD_nephro_aigue,
+  DM_MRC_connue, DM_MRC_stade)))
+
 # --- 4.3 Comparateur FDR HAS ------------------------------------------------
 kappa_fdr_res <- cohen.kappa(as.matrix(predictr_dm[, c("PR_bin", "au_moins_1_FDR")]))
 kappa_fdr_val <- kappa_fdr_res$kappa
 kappa_fdr_lo  <- kappa_fdr_res$confid["unweighted kappa", "lower"]
 kappa_fdr_hi  <- kappa_fdr_res$confid["unweighted kappa", "upper"]
 tab_fdr   <- table(PR = predictr_dm$PR_bin, FDR = predictr_dm$au_moins_1_FDR)
+print(tab_fdr)
+cat("Kappa PR vs >= 1 FDR HAS =", round(kappa_fdr_val, 3), landis_koch(kappa_fdr_val), "\n")
+risque_sans_fdr <- predictr_dm |> filter(PR_bin == 1, nb_FDR_HAS == 0)
+cat("A risque sans FDR HAS :", nrow(risque_sans_fdr), "; dont patho uro declaree dans Predict-R :",
+    sum(eq1(risque_sans_fdr$PR_maladie_uro)), "\n")
+verts_fdr <- predictr_dm |> filter(PR_bin == 0, nb_FDR_HAS >= 1)
+cat("Verts avec >= 1 FDR HAS :", nrow(verts_fdr), "; dont un seul :", sum(verts_fdr$nb_FDR_HAS == 1), "\n")
+
+# --- Resultats 6 : classification des patients avec MRC connue ---
+mrc <- predictr_dm |> filter(DM_MRC_connue == 1)
+cat("MRC connues :", nrow(mrc), "; classees orange/rouge :", sum(mrc$PR_bin), "\n")
+print(as.data.frame(mrc |> select(id_patient, DM_sexe, PR_couleur, DM_MRC_stade, DM_MRC_critere,
+  DM_DFG_valeur, DM_RAC_valeur, DM_HTA, DM_diabete, DM_ATCD_nephro_aigue, DM_patho_uro, nb_FDR_HAS,
+  DM_suivi_nephro, DM_ttt_nephroprotecteur)))
+alb <- mrc |> filter(id_patient %in% mrc_alb)   # PRED095 (G2, deja MRC connue) garde son critere
+cat("MRC sur seule albuminurie persistante :", nrow(alb), "; diabetiques :", sum(eq1(alb$DM_diabete)),
+    "; rouges :", sum(alb$PR_couleur == "rouge"), "; DFG >= 60 :", sum(alb$DM_DFG_valeur >= 60),
+    "; RAC A2 :", sum(alb$DM_RAC_valeur >= 3 & alb$DM_RAC_valeur < 30),
+    "; suivi nephro :", sum(eq1(alb$DM_suivi_nephro)),
+    "; IEC/ARA2/iSGLT2 :", sum(eq1(alb$DM_ttt_nephroprotecteur)), "\n")
 
 # Fisher test : association FDR HAS >= 1 et depistage complet
 tab_fdr_dep <- table(FDR = predictr_dm$au_moins_1_FDR,
@@ -375,26 +486,24 @@ fisher_fdr_dep <- fisher.test(tab_fdr_dep)
 cat("Fisher FDR>=1 vs depistage complet : p =", format.pval(fisher_fdr_dep$p.value), "\n")
 
 # --- 4.4 Export Tableaux 3 et 4 ---------------------------------------------
+cat("Comparateur Predict-R vs >= 1 FDR HAS : accord",
+    frf("%.1f %%", (tab_fdr[1,1] + tab_fdr[2,2]) / sum(tab_fdr) * 100),
+    "; kappa", frf("%.3f [%.3f ; %.3f]", kappa_fdr_val, kappa_fdr_lo, kappa_fdr_hi), "\n")
+
 tab_kappa_df <- tibble(
   Indicateur = c(
-    "Concordance brute",
+    "Accord observé",
     "Kappa de Cohen",
-    "IC 95 % du Kappa",
-    "PABAK (Byrt 1993)",
-    "Interprétation (Landis & Koch)",
-    "Comparateur : Kappa PR vs ≥1 FDR HAS",
-    "IC 95 % du Kappa PR vs FDR",
-    "Accord brut PR vs FDR"
+    "IC 95 % du kappa",
+    "Interprétation (Landis et Koch)",
+    "PABAK"
   ),
   Valeur = c(
     frf("%.1f %%", accord * 100),
     frf("%.3f", kappa_val),
     frf("[%.3f ; %.3f]", kappa_lo, kappa_hi),
-    frf("%.3f", pabak),
-    "Accord faible (Landis & Koch)",
-    frf("%.3f", kappa_fdr_val),
-    frf("[%.3f ; %.3f]", kappa_fdr_lo, kappa_fdr_hi),
-    frf("%.1f %%", (tab_fdr[1,1] + tab_fdr[2,2]) / sum(tab_fdr) * 100)
+    landis_koch(kappa_val),
+    frf("%.3f", pabak)
   )
 )
 
@@ -407,15 +516,16 @@ flex_conc <- flextable(tab_3x2_complet) |>
   bold(j = 1) |>
   bold(part = "header") |>
   bold(i = nrow(tab_3x2_complet)) |>
-  align(j = 2:4, align = "center", part = "all") |>
-  add_footer_lines("Pourcentages calculés en ligne.")
+  align(j = 2:4, align = "center", part = "all")
 
 flex_kappa <- flextable(tab_kappa_df) |>
   set_caption("Tableau 4. Kappa de Cohen et analyses complémentaires") |>
   autofit() |>
   theme_vanilla() |>
   bold(j = 1) |>
-  bold(part = "header")
+  bold(part = "header") |>
+  add_footer_lines(paste("Kappa et PABAK calculés sur le tableau 2 × 2 : à risque (orange ou rouge)",
+                         "contre vert, repéré contre non repéré."))
 
 save_as_docx(
   flex_conc,
@@ -573,9 +683,10 @@ cat("Tableaux 8 et 9 (version de travail) sauvegardes.\n")
 # ============================================================================
 
 # Denominateur STROBE (valeurs du fichier Maiia, figees)
-n_rdv       <- 908
-n_eligible  <- 516
-n_heko_brut <- 144
+n_rdv       <- flux[["rdv"]]                                   # 908
+n_eligible  <- n_rdv - flux[["non_honores"]] - flux[["teleconsult"]] -
+               flux[["endocrino"]] - flux[["rdv_mineurs"]]     # 516 RDV eligibles
+n_heko_brut <- flux[["heko_activees"]]                         # 144 comptes HEKO actives
 n_inclus    <- nrow(predictr)  # 139
 
 # Modalites de completion
@@ -586,43 +697,100 @@ modalites <- predictr |>
 # BU realisees
 n_bu <- sum(predictr$PR_BU_realisee == 1, na.rm = TRUE)
 
+# --- Chiffres du texte (Resultats 11) ----------------------------------------
+# Comptes HEKO (export HEKO, valeurs figees en 1.6)
+n_heko_init     <- flux[["heko_initiees"]]     # 155 inscriptions initiees
+n_jamais_active <- flux[["jamais_activees"]]   # 11 comptes jamais actives
+stopifnot(n_heko_init - n_jamais_active == n_heko_brut)
+cat("\n--- Faisabilite ---\n")
+cat("Comptes jamais actives :", n_jamais_active, "/", n_heko_init,
+    frf("(%.1f %%)", n_jamais_active / n_heko_init * 100), "\n")
+cat("Taux d'activation :", frf("%.1f %%", n_heko_brut / n_heko_init * 100), "\n")
+cat("Taux de participation :", frf("%.1f %%", n_inclus / n_eligible * 100),
+    "| taux de completion :", frf("%.1f %%", n_inclus / n_heko_brut * 100), "\n")
+print(modalites)
+
+# Age declare (PR_age, n = 131 avec modalite renseignee) selon la modalite
+arr_sup <- function(x) floor(x + 0.5)   # demi arrondi vers le haut, comme dans le manuscrit
+age_mod <- predictr |>
+  filter(!is.na(modalite_completion)) |>
+  group_by(modalite_completion) |>
+  summarise(n = n(), med = median(PR_age),
+            q1 = quantile(PR_age, 0.25), q3 = quantile(PR_age, 0.75), .groups = "drop") |>
+  mutate(texte = sprintf("%.0f ans [%.0f ; %.0f]", arr_sup(med), arr_sup(q1), arr_sup(q3)))
+print(as.data.frame(age_mod))
+cat("Kruskal-Wallis age ~ modalite : p =",
+    fmt_p_fr(kruskal.test(PR_age ~ factor(modalite_completion),
+                          data = filter(predictr, !is.na(modalite_completion)))$p.value), "\n")
+cat("Questionnaires interrompus :", flux[["interrompus"]], "dont a l'etape BU :",
+    flux[["interrompus_etape_BU"]], "(export HEKO)\n")
+
+# Bandelette : positives et effet de ses points (6 + 6) sur le niveau
+niveau_pr <- function(s) cut(s, c(-Inf, 4, 6, Inf), right = FALSE,
+                             labels = c("vert", "orange", "rouge"))
+bu_effet <- predictr |>
+  mutate(BU_positive   = eq1(PR_BU_hematurie) | eq1(PR_BU_proteinurie),
+         score_sans_BU = PR_score - 6 * eq1(PR_BU_hematurie) - 6 * eq1(PR_BU_proteinurie),
+         couleur_sans_BU = niveau_pr(score_sans_BU))
+stopifnot(all(niveau_pr(bu_effet$PR_score) == bu_effet$PR_couleur))
+cat("BU realisees :", n_bu, "/", n_inclus, frf("(%.1f %%)", n_bu / n_inclus * 100),
+    "| positives :", sum(bu_effet$BU_positive), "\n")
+cat("Changement de niveau sans les points de la BU :\n")
+print(bu_effet |> filter(as.character(couleur_sans_BU) != as.character(PR_couleur)) |>
+        select(id_patient, PR_score, score_sans_BU, PR_couleur, couleur_sans_BU))
+cat("Retraits de la non-opposition :", sum(eq1(predictr$retrait_non_opposition)), "\n")
+# Item du questionnaire Predict-R (Resultats 12.1)
+cat("Transmission au MT acceptee :", sum(eq1(predictr$PR_transmission_MG)), "/", n_inclus,
+    frf("(%.1f %%)", mean(eq1(predictr$PR_transmission_MG)) * 100),
+    "| refusee :", sum(predictr$PR_transmission_MG == 0, na.rm = TRUE),
+    frf("(%.1f %%)", mean(predictr$PR_transmission_MG == 0, na.rm = TRUE) * 100), "\n")
+
+# Effectifs de reponse aux questionnaires de satisfaction (CSV de la section 8)
+n_sat_pat_t10 <- if (sat_dispo) nrow(read.csv(f_sat_pat, fileEncoding = "UTF-8")) else NA_integer_
+n_sat_med_t10 <- if (sat_dispo) nrow(read.csv(f_sat_med, fileEncoding = "UTF-8")) else NA_integer_
+n_med_site    <- 9L   # medecins generalistes du site Vincent Auriol
+n_smart <- sum(modalites$n[modalites$modalite_completion %in% c("AUTO_SMART", "AIDE_SMART")])
+
 tableau6 <- tibble(
   Indicateur = c(
-    "RDV totaux semaine (Maiia)",
-    "Patients éligibles (adultes, MG, physique)",
-    "Questionnaires HEKO bruts",
-    "Inclus après nettoyage",
-    "Taux de participation (inclus / éligibles)",
-    "Taux de complétion (inclus / HEKO bruts)",
-    "Smartphone (AUTO_SMART + AIDE_SMART)",
+    "RDV totaux semaine*",
+    "RDV éligibles (adultes, MG, présentiel)",
+    "Inscriptions HEKO initiées",
+    "Dont comptes jamais activés",
+    "Comptes HEKO activés",
+    "Patients inclus",
+    "Taux de participation estimé (inclus / RDV éligibles)",
+    "Taux de complétion (inclus / comptes activés)",
+    "Smartphone (en autonomie ou avec aide)",
+    "Réponse satisfaction patients",
+    "Réponse satisfaction médecins",
     "BU réalisées"
   ),
   Valeur = c(
     as.character(n_rdv),
     as.character(n_eligible),
+    as.character(n_heko_init),
+    frf("%d (%.1f %%)", n_jamais_active, n_jamais_active / n_heko_init * 100),
     as.character(n_heko_brut),
     as.character(n_inclus),
     frf("%.1f %%", n_inclus / n_eligible * 100),
     frf("%.1f %%", n_inclus / n_heko_brut * 100),
-    frf("%d / %d (%.1f %%)",
-            sum(modalites$n[modalites$modalite_completion %in%
-                             c("AUTO_SMART", "AIDE_SMART")]),
-            n_inclus,
-            sum(modalites$n[modalites$modalite_completion %in%
-                             c("AUTO_SMART", "AIDE_SMART")]) / n_inclus * 100),
-    frf("%d / %d (%.1f %%)", n_bu, n_inclus, n_bu / n_inclus * 100)
+    frf("%d/%d (%.1f %%)", n_smart, n_inclus, n_smart / n_inclus * 100),
+    frf("%d/%d (%.1f %%)", n_sat_pat_t10, n_inclus, n_sat_pat_t10 / n_inclus * 100),
+    frf("%d/%d (%.1f %%)", n_sat_med_t10, n_med_site, n_sat_med_t10 / n_med_site * 100),
+    frf("%d/%d (%.1f %%)", n_bu, n_inclus, n_bu / n_inclus * 100)
   )
 )
 
 flex_faisa <- flextable(tableau6) |>
-  set_caption("Tableau 10. Indicateurs de faisabilité de l'étude PREDICT-R") |>
+  set_caption("Tableau 10. Indicateurs de faisabilité de l'étude Predict-R") |>
   autofit() |>
   theme_vanilla() |>
   bold(j = 1) |>
   bold(part = "header") |>
   add_footer_lines(paste0(
-    "Source dénominateur : export Maiia, MSP Labarthe-sur-Lèze, ",
-    "semaine du 18-22 mai 2026.")) |>
+    "*Source : export Maiia, MSP Labarthe-sur-Lèze, ",
+    "semaine du 18 au 22 mai 2026.")) |>
   add_footer_lines(paste0(
     "Le nombre de patients sollicités et de refus n'a pas pu être ",
     "comptabilisé (utilisation en autonomie)."))
@@ -635,6 +803,8 @@ cat("Tableau 10 sauvegarde.\n")
 # ============================================================================
 # 8. SATISFACTION (OS4)
 # ============================================================================
+
+if (sat_dispo) {
 
 # --- 8.1 Patients (n = 39) --------------------------------------------------
 sat_pat <- read.csv(here("data", "satisfaction_patient.csv"),
@@ -758,6 +928,10 @@ save_as_docx(flex_sat_med,
                          "Tableau12_satisfaction_medecins_version_de_travail.docx"))
 cat("Tableau 12 (version de travail) sauvegarde.\n")
 
+} else {
+  cat("\nCSV de satisfaction absents : section 8 et Figure 6 non produites.\n")
+}
+
 
 # ============================================================================
 # 9. FIGURES
@@ -837,6 +1011,7 @@ fig5_travail <- fig5_data |>
 ggsave(here("output", "figures", "Figure5_gradient_depistage_version_de_travail.png"),
        fig5_travail, width = 7, height = 5, dpi = 300)
 
+if (sat_dispo) {
 # --- Figure 6 : Note satisfaction /10 ----------------------------------------
 fig6 <- tibble(note = notes_valides) |>
   ggplot(aes(x = factor(note))) +
@@ -855,6 +1030,7 @@ fig6 <- tibble(note = notes_valides) |>
 
 ggsave(here("output", "figures", "Figure6_satisfaction_note.png"),
        fig6, width = 6, height = 4, dpi = 300)
+}
 
 
 # ============================================================================
@@ -868,5 +1044,5 @@ cat("  Figures  -> output/figures/*.png\n")
 cat("=========================================\n\n")
 
 # Trace de reproductibilite
-sink(here("output", "sessionInfo.txt")); sessionInfo(); sink()
+sink(here("output", "sessionInfo.txt")); print(sessionInfo()); sink()
 cat("sessionInfo sauvegarde dans output/sessionInfo.txt\n")
