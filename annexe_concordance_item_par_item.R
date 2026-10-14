@@ -21,17 +21,17 @@ d <- d |> mutate(PR_obesite = as.integer(!is.na(PR_IMC) & PR_IMC > 30))
 # --- Definition des paires croisables ---
 paires <- list(
   list(nom = "HTA",                     pr = "PR_HTA",                 dm = "DM_HTA"),
-  list(nom = "Diabete",                 pr = "PR_diabete",             dm = "DM_diabete"),
-  list(nom = "Obesite (IMC > 30)",      pr = "PR_obesite",             dm = "DM_obesite"),
+  list(nom = "Diab\u00e8te",                 pr = "PR_diabete",             dm = "DM_diabete"),
+  list(nom = "Ob\u00e9sit\u00e9 (IMC > 30)",      pr = "PR_obesite",             dm = "DM_obesite"),
   list(nom = "MCV",                     pr = "PR_MCV",                 dm = "DM_MCV"),
   list(nom = "Insuffisance cardiaque",  pr = "PR_insuf_cardiaque",     dm = "DM_insuf_cardiaque"),
   list(nom = "Pathologie urologique",   pr = "PR_maladie_uro",         dm = "DM_patho_uro"),
   list(nom = "Tabagisme",               pr = "PR_tabagisme",           dm = "DM_tabagisme"),
-  list(nom = "Dyslipidemie",            pr = "PR_dyslipidemie",        dm = "DM_dyslipidemie"),
-  list(nom = "Prematurite",             pr = "PR_prematurite",         dm = "DM_prematurite"),
+  list(nom = "Dyslipid\u00e9mie",            pr = "PR_dyslipidemie",        dm = "DM_dyslipidemie"),
+  list(nom = "Pr\u00e9maturit\u00e9",             pr = "PR_prematurite",         dm = "DM_prematurite"),
   list(nom = "Exposition PCI",          pr = "PR_expo_PCI",            dm = "DM_expo_PCI"),
-  list(nom = "Radiotherapie renale",    pr = "PR_expo_radiotherapie",  dm = "DM_expo_radiotherapie"),
-  list(nom = "AINS (usage regulier)",   pr = "PR_AINS",               dm = "DM_ttt_AINS")
+  list(nom = "Radioth\u00e9rapie abdominale",    pr = "PR_expo_radiotherapie",  dm = "DM_expo_radiotherapie"),
+  list(nom = "AINS (usage r\u00e9gulier)",   pr = "PR_AINS",               dm = "DM_ttt_AINS")
 )
 
 # --- Calcul concordance pour chaque paire ---
@@ -65,8 +65,8 @@ resultats <- purrr::map_dfr(paires, function(p) {
     `PR+ n` = pr_pos,
     `DM+ n` = dm_pos,
     `Accord n` = accord,
-    `Accord %` = sprintf("%.1f", pct_accord),
-    Kappa = if (is.na(kappa_val)) "-" else sprintf("%.2f", kappa_val),
+    `Accord %` = sub(".", ",", sprintf("%.1f", pct_accord), fixed = TRUE),
+    Kappa = if (is.na(kappa_val)) "-" else sub(".", ",", sprintf("%.2f", kappa_val), fixed = TRUE),
     n = n_ok
   )
 })
@@ -77,7 +77,7 @@ print(as.data.frame(resultats))
 # --- Flextable ---
 ft <- flextable(resultats) |>
   theme_vanilla() |>
-  set_caption("Concordance item par item entre Predict-R (auto-declaration) et le dossier medical (n = 130)") |>
+  set_caption(sprintf("Concordance item par item entre Predict-R et le dossier m\u00e9dical (n = %d)", nrow(d))) |>
   set_header_labels(
     Item = "Facteur de risque",
     `PR+ n` = "PR+\n(n)",
@@ -90,9 +90,9 @@ ft <- flextable(resultats) |>
   bold(part = "header") |>
   bold(j = 1) |>
   align(j = 2:7, align = "center", part = "all") |>
-  add_footer_lines("PR+ = facteur declare present dans Predict-R. DM+ = facteur code dans le dossier medical.") |>
-  add_footer_lines("Accord = les deux sources concordent (toutes deux positives ou toutes deux negatives).") |>
-  add_footer_lines("Kappa de Cohen ; \"-\" = variance insuffisante (prevalence nulle dans une source).") |>
+  add_footer_lines("PR+ = facteur d\u00e9clar\u00e9 pr\u00e9sent dans Predict-R. DM+ = facteur retrouv\u00e9 dans le dossier m\u00e9dical.") |>
+  add_footer_lines("Accord = les deux sources concordent (toutes deux positives ou toutes deux n\u00e9gatives).") |>
+  add_footer_lines("Kappa de Cohen ; \u00ab - \u00bb = pr\u00e9valence nulle dans une source.") |>
   autofit()
 
 save_as_docx(ft, path = here("output", "tableaux", "Concordance_item_par_item.docx"))

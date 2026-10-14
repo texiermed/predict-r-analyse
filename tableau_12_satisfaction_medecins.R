@@ -8,6 +8,8 @@ library(here)
 dir.create(here("output", "tableaux"), recursive = TRUE, showWarnings = FALSE)
 
 # --- Lecture des donnees ---
+if (!file.exists(here("data", "satisfaction_medecin.csv")))
+  stop("data/satisfaction_medecin.csv absent (export Google Forms non diffuse, cf. README)")
 sat_med <- read.csv(here("data", "satisfaction_medecin.csv"), fileEncoding = "UTF-8")
 n_sat <- nrow(sat_med)
 cat("Satisfaction m\u00e9decins : n =", n_sat, "\n")
@@ -27,10 +29,10 @@ to_likert <- function(x) {
 # --- Items Likert (7) ---
 items <- list(
   list(col = 2, nom = "Facile \u00e0 comprendre pour les patients"),
-  list(col = 3, nom = "Pr\u00e9sentation claire et lisible"),
+  list(col = 3, nom = "Pr\u00e9sentation du r\u00e9sultat claire et lisible"),
   list(col = 4, nom = "Am\u00e9liorer le rep\u00e9rage MRC"),
   list(col = 5, nom = "Identifier des patients non rep\u00e9r\u00e9s"),
-  list(col = 6, nom = "Favorable \u00e0 l'utilisation"),
+  list(col = 6, nom = "Favorable \u00e0 l'utilisation dans certaines situations*"),
   list(col = 7, nom = "Int\u00e9grer dans la pratique"),
   list(col = 8, nom = "Recommander \u00e0 des confr\u00e8res")
 )
@@ -48,9 +50,12 @@ likert_df <- purrr::map_dfr(items, function(item) {
     c3 = sprintf("%d/%d", n3, n_rep),
     c4 = sprintf("%d/%d", n2, n_rep),
     c5 = sprintf("%d/%d", n1, n_rep),
-    c6 = as.character(n_rep)
+    c6 = as.character(n_rep),
+    neg = n1 + n2
   )
 })
+n_neg <- sum(likert_df$neg); likert_df <- select(likert_df, -neg)
+cat("Reponses negatives (items de Likert) :", n_neg, "\n")
 
 # --- Separateur ---
 sep <- tibble(Item = "Questions ouvertes", c2 = "", c3 = "", c4 = "", c5 = "", c6 = "")
@@ -62,13 +67,13 @@ other_df <- tibble(
     "Suggestions"
   ),
   c2 = c(
-    "Fracture num\u00e9rique des personnes \u00e2g\u00e9es (3/9)  |  Temps de r\u00e9alisation (1/9)  |  Pas de frein franc (1/9)",
-    "Version papier  |  Ajout ant\u00e9c\u00e9dents familiaux  |  Visuel plus agr\u00e9able"
+    "Fracture num\u00e9rique des personnes \u00e2g\u00e9es (3/9) | Patients \u00e0 accompagner : malvoyants, peu \u00e0 l'aise avec le num\u00e9rique (2/9) | Temps de r\u00e9alisation (1/9) | Patients d\u00e9j\u00e0 dans des circuits de soins (1/9) | Pas de frein franc (1/9)",
+    "Version papier | Ant\u00e9c\u00e9dents familiaux et consanguinit\u00e9 | Visuel plus agr\u00e9able"
   ),
   c3 = rep("", 2),
   c4 = rep("", 2),
   c5 = rep("", 2),
-  c6 = c(as.character(n_sat), as.character(n_sat))
+  c6 = c("7", "3")   # medecins ayant repondu a chaque question ouverte
 )
 
 # --- Assemblage ---
@@ -105,9 +110,12 @@ ft <- flextable(full_df) |>
   merge_at(i = i_other[2], j = 2:5) |>
   align(i = i_other, j = 2, align = "left") |>
   # Footer
-  add_footer_lines(sprintf(
-    "Taux de r\u00e9ponse : %d/9 (100 %%). Format k/n (pourcentages omis, effectif limit\u00e9). Aucune r\u00e9ponse n\u00e9gative sur l'ensemble des items Likert.",
-    n_sat)) |>
+  add_footer_lines("* Campagne de pr\u00e9vention, salle d'attente, consultation d\u00e9di\u00e9e.") |>
+  add_footer_lines(paste0(
+    sprintf("Taux de r\u00e9ponse : %d/9 (%s %%). ", n_sat, gsub(".", ",", sprintf("%.1f", n_sat / 9 * 100), fixed = TRUE)),
+    sprintf("Effectifs pr\u00e9sent\u00e9s sans pourcentage, compte tenu du faible effectif (n = %d). ", n_sat),
+    if (n_neg == 0) "Aucune r\u00e9ponse n\u00e9gative sur l'ensemble des items de Likert."
+    else sprintf("%d r\u00e9ponse(s) n\u00e9gative(s) sur les items de Likert.", n_neg))) |>
   autofit()
 
 # --- Sauvegarde ---

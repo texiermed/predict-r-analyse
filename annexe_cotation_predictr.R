@@ -1,4 +1,5 @@
-# Annexe 3 du manuscrit : cotation du questionnaire Predict-R item par item
+# Bareme du questionnaire Predict-R (resume de l'Annexe 3 du manuscrit, qui
+# reproduit le questionnaire BOT design lui-meme).
 # Source : bareme officiel Predict-R (14 items cotes / 16 questions).
 
 library(flextable)
@@ -23,8 +24,8 @@ cotation <- data.frame(
     "Insuffisance cardiaque",
     "Ob\u00e9sit\u00e9 (IMC > 30 kg/m\u00b2)",
     "Pathologie urologique (IU r\u00e9cidivantes, calculs, py\u00e9lon\u00e9phrites, n\u00e9phrectomie, malformation)",
-    "AINS r\u00e9guliers (\u2265 1\u00d7/semaine)",
-    "Exposition aux produits de contraste iod\u00e9s (\u2265 1\u00d7/an)",
+    "AINS plus d'une fois par semaine (> 1\u00d7/semaine)",
+    "Exposition aux produits de contraste iod\u00e9s par scanner (> 1\u00d7/an)",
     "Ant\u00e9c\u00e9dent de radioth\u00e9rapie abdominale",
     "H\u00e9maturie (bandelette urinaire positive)",
     "Prot\u00e9inurie (bandelette urinaire positive)"

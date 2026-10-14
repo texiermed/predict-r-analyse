@@ -8,6 +8,8 @@ library(here)
 dir.create(here("output", "tableaux"), recursive = TRUE, showWarnings = FALSE)
 
 # --- Lecture des donnees ---
+if (!file.exists(here("data", "satisfaction_patient.csv")))
+  stop("data/satisfaction_patient.csv absent (export Google Forms non diffuse, cf. README)")
 sat_pat <- read.csv(here("data", "satisfaction_patient.csv"), fileEncoding = "UTF-8")
 n_sat <- nrow(sat_pat)
 cat("Satisfaction patients : n =", n_sat, "\n")
@@ -24,7 +26,8 @@ to_likert <- function(x) {
   )
 }
 
-fmt <- function(n, total) sprintf("%d (%.1f %%)", n, n / total * 100)
+frf <- function(...) gsub(".", ",", sprintf(...), fixed = TRUE)   # virgule decimale
+fmt <- function(n, total) frf("%d (%.1f %%)", n, n / total * 100)
 
 # --- Items Likert ---
 items <- list(
@@ -32,7 +35,7 @@ items <- list(
   list(col = 3, nom = "Dur\u00e9e adapt\u00e9e"),
   list(col = 4, nom = "Compr\u00e9hension des questions"),
   list(col = 7, nom = "Comprendre son risque r\u00e9nal"),
-  list(col = 9, nom = "Recommandation \u00e0 un proche")
+  list(col = 9, nom = "Recommandation \u00e0 d'autres personnes")
 )
 
 likert_df <- purrr::map_dfr(items, function(item) {
@@ -48,9 +51,15 @@ likert_df <- purrr::map_dfr(items, function(item) {
     c3 = fmt(n3, n_rep),
     c4 = fmt(n2, n_rep),
     c5 = fmt(n1, n_rep),
-    c6 = as.character(n_rep)
+    c6 = as.character(n_rep),
+    pos = (n3 + n4) / n_rep * 100
   )
 })
+cat("Reponses positives (plutot ou tout a fait d'accord), min-max :",
+    frf("%.1f %% a %.1f %%", min(likert_df$pos), max(likert_df$pos)), "\n")
+n_items <- setNames(as.integer(likert_df$c6), likert_df$Item)
+likert_df <- select(likert_df, -pos)
+likert_df$c6[c(1, 4)] <- paste0(likert_df$c6[c(1, 4)], c("*", "**"))   # renvois des notes
 
 # --- Items non-Likert ---
 intrusion_oui <- sum(stringr::str_detect(tolower(sat_pat[[5]]), "oui"), na.rm = TRUE)
@@ -70,25 +79,25 @@ sep <- tibble(Item = "Autres items", c2 = "", c3 = "", c4 = "", c5 = "", c6 = ""
 other_df <- tibble(
   Item = c(
     "Questions intrusives",
-    "Intention de consulter le MT",
+    "Souhait d'en discuter avec le MT",
     "Note globale (/10)"
   ),
   c2 = c(
-    sprintf("Oui : %d (%.0f %%)  |  Non : %d (%.0f %%)",
+    frf("Oui : %d (%.1f %%) | Non : %d (%.1f %%)",
             intrusion_oui, intrusion_oui / n_sat * 100,
             n_sat - intrusion_oui, (n_sat - intrusion_oui) / n_sat * 100),
-    sprintf("Oui : %d (%.1f %%)  |  Peut-\u00eatre : %d (%.1f %%)  |  Non : %d (%.1f %%)",
+    frf("Oui : %d (%.1f %%) | Peut-\u00eatre : %d (%.1f %%) | Non : %d (%.1f %%)",
             mt_oui, mt_oui / n_sat * 100,
             mt_pe, mt_pe / n_sat * 100,
             mt_non, mt_non / n_sat * 100),
-    sprintf("M\u00e9diane : %.0f [Q1 = %d ; Q3 = %d]  |  Moyenne : %.2f  |  \u2265 8 : %d (%.1f %%)",
+    frf("M\u00e9diane : %.0f [Q1 = %.0f ; Q3 = %.0f] | Moyenne : %.2f | \u2265 8 : %d (%.1f %%)",
             median(notes_v), quantile(notes_v, 0.25), quantile(notes_v, 0.75),
             mean(notes_v), sum(notes_v >= 8), sum(notes_v >= 8) / n_notes * 100)
   ),
   c3 = rep("", 3),
   c4 = rep("", 3),
   c5 = rep("", 3),
-  c6 = c("39", "39", as.character(n_notes))
+  c6 = c(as.character(n_sat), as.character(n_sat), as.character(n_notes))
 )
 
 # --- Assemblage ---
@@ -127,8 +136,12 @@ ft <- flextable(full_df) |>
   align(i = i_other, j = 2, align = "left") |>
   # Footer
   add_footer_lines(sprintf(
-    "Taux de r\u00e9ponse : %d/139 (%.1f %%). \u00c9chelle de Likert : 1 = Pas du tout d'accord, 4 = Tout \u00e0 fait d'accord. MT = m\u00e9decin traitant.",
-    n_sat, n_sat / 139 * 100)) |>
+    "Taux de r\u00e9ponse : %d/139 (%s %%). \u00c9chelle de Likert : 1 = Pas du tout d'accord, 4 = Tout \u00e0 fait d'accord. MT = m\u00e9decin traitant.",
+    n_sat, frf("%.1f", n_sat / 139 * 100))) |>
+  add_footer_lines(sprintf("* n = %d pour \u00ab Simplicit\u00e9 \u00bb (%d r\u00e9ponse manquante)",
+    n_items[[1]], n_sat - n_items[[1]])) |>
+  add_footer_lines(sprintf("** n = %d pour \u00ab Comprendre son risque \u00bb (item ajout\u00e9 apr\u00e8s les %d premiers r\u00e9pondants)",
+    n_items[[4]], n_sat - n_items[[4]])) |>
   autofit()
 
 # --- Sauvegarde ---

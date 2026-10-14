@@ -26,7 +26,8 @@ fmt_p_fr <- function(p) {
 eq1 <- function(x) !is.na(x) & x == 1
 
 # --- Chargement données ---
-predictr <- read_excel(here("data", "CRD_PredictRVF_data.xlsx"))
+predictr <- read_excel(here("data", "CRD_PredictRVF_data.xlsx"),
+                       sheet = "donnees", na = c("", "NA"))
 
 predictr <- predictr |>
   mutate(
@@ -53,7 +54,9 @@ predictr_dm <- predictr_dm |>
 
 orange_rouge <- predictr_dm |> filter(PR_bin == 1)
 cat("Orange/rouge :", nrow(orange_rouge), "\n")
-cat("Rattrapes :", sum(orange_rouge$rattrape), "\n\n")
+cat("Rattrapes :", sum(orange_rouge$rattrape), "\n")
+cat("Rattrapes avec >= 1 FDR HAS :", sum(orange_rouge$rattrape == 1 & orange_rouge$nb_FDR_HAS >= 1),
+    "; sans FDR HAS :", sum(orange_rouge$rattrape == 1 & orange_rouge$nb_FDR_HAS == 0), "\n\n")
 
 # ============================================================================
 # TABLEAU 5 — Rattrapés par tranche d'âge
@@ -61,10 +64,12 @@ cat("Rattrapes :", sum(orange_rouge$rattrape), "\n\n")
 
 orange_rouge <- orange_rouge |>
   mutate(
-    tranche_age = cut(DM_age,
-                      breaks = c(-Inf, 40, 60, Inf),
-                      labels = c("< 40 ans", "40-60 ans", "> 60 ans"),
-                      right = TRUE)
+    # bornes conformes aux libelles : < 40 ; [40 ; 60] ; > 60
+    # (cut(right = TRUE) classait un patient de 40 ans dans « < 40 ans »)
+    tranche_age = factor(case_when(DM_age < 40  ~ "< 40 ans",
+                                   DM_age <= 60 ~ "40-60 ans",
+                                   TRUE         ~ "> 60 ans"),
+                         levels = c("< 40 ans", "40-60 ans", "> 60 ans"))
   )
 
 tab_age <- orange_rouge |>
@@ -119,7 +124,7 @@ flex_age <- flextable(tab5_df) |>
   align(j = 2:5, align = "center", part = "all") |>
   add_footer_lines(paste0(
     "Rattrapés = patients orange/rouge non repérés dans le dossier médical. ",
-    "IC Wilson sans correction de continuité.")) |>
+    "IC Wilson.")) |>
   add_footer_lines(paste0(
     "Test exact de Fisher : p = ", fmt_p_fr(fisher_age$p.value), "."))
 
@@ -178,10 +183,10 @@ flex_fdr <- flextable(tab6_df) |>
   bold(i = nrow(tab6_df), part = "body") |>
   align(j = 2:5, align = "center", part = "all") |>
   add_footer_lines(paste0(
-    "FDR HAS = facteurs de risque de dépistage de la MRC (HAS 2021, 12 facteurs). ",
+    "FDR HAS = facteurs de risque justifiant un dépistage de la MRC selon la HAS. ",
     "Rattrapés = patients orange/rouge non repérés dans le dossier médical.")) |>
   add_footer_lines(paste0(
-    "IC Wilson sans correction de continuité. ",
+    "IC Wilson. ",
     "Test exact de Fisher : p = ", fmt_p_fr(fisher_fdr$p.value), "."))
 
 save_as_docx(flex_fdr,

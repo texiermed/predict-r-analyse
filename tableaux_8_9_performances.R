@@ -20,7 +20,8 @@ frf <- function(...) gsub(".", ",", sprintf(...), fixed = TRUE)
 eq1 <- function(x) !is.na(x) & x == 1
 
 # --- Chargement ---
-predictr <- read_excel(here("data", "CRD_PredictRVF_data.xlsx"))
+predictr <- read_excel(here("data", "CRD_PredictRVF_data.xlsx"),
+                       sheet = "donnees", na = c("", "NA"))
 predictr <- predictr |>
   mutate(
     PR_couleur = factor(PR_couleur, levels = c("vert", "orange", "rouge")),
@@ -45,7 +46,20 @@ predictr_dm <- predictr_dm |>
 # --- Sous-groupe avec biologie ---
 os6 <- predictr_dm |> filter(!is.na(MRC_KDIGO))
 cat("n avec biologie :", nrow(os6), "\n")
-cat("KDIGO+ :", sum(os6$MRC_KDIGO == 1), "\n")
+# --- Resultats 10 : prevalence et completude du standard de reference ---
+cat("KDIGO+ :", frf("%d/%d (%.1f %%)", sum(os6$MRC_KDIGO == 1), nrow(os6),
+                    mean(os6$MRC_KDIGO == 1) * 100), "\n")
+# RAC compte seulement si DM_RAC = 1 (PRED020 : RAC_valeur = 0,00 saisi avec DM_RAC = 0)
+n_ref_complet <- sum(!is.na(os6$DM_DFG_valeur) & eq1(os6$DM_RAC) & !is.na(os6$DM_RAC_valeur))
+cat("Standard de reference complet (DFG + RAC) :", n_ref_complet, "/", nrow(os6), "\n")
+cat("  (toute valeur de RAC saisie :",
+    sum(!is.na(os6$DM_DFG_valeur) & !is.na(os6$DM_RAC_valeur)), ")\n")
+cat("RAC sans DFG :", sum(is.na(os6$DM_DFG_valeur) & !is.na(os6$DM_RAC_valeur)), "\n")
+# Chronicite (non tracee dans le CRD) : les M+ doivent etre des MRC connues
+# (cahier + PRED001, PRED071, PRED129 : albuminurie persistante verifiee dans le dossier)
+mrc_connue_8 <- eq1(os6$DM_MRC_connue) | os6$id_patient %in% c("PRED001", "PRED071", "PRED129")
+print(table(MRC_KDIGO = os6$MRC_KDIGO, MRC_connue = mrc_connue_8))
+cat("M+ :", sort(os6$id_patient[os6$MRC_KDIGO == 1]), "\n")
 
 os6 <- os6 |>
   mutate(
@@ -70,13 +84,13 @@ cat(sprintf("VP=%d FP=%d FN=%d VN=%d\n", vp, fp, fn, vn))
 tab_croise <- tibble(
   ` ` = c("T+ (orange/rouge)", "T- (vert)", "Total"),
   `M+ (MRC KDIGO)` = c(as.character(vp), as.character(fn), as.character(vp + fn)),
-  `M- (pas de MRC)` = c(as.character(fp), as.character(vn), as.character(fp + vn)),
+  `M- (pas de MRC détectée)` = c(as.character(fp), as.character(vn), as.character(fp + vn)),
   Total = c(as.character(vp + fp), as.character(fn + vn), as.character(nrow(os6)))
 )
 
 flex_croise <- flextable(tab_croise) |>
   set_caption(paste0("Tableau 8. Tableau de contingence Predict-R ", "\u00d7",
-                     " gold standard KDIGO (n = ", nrow(os6), ").")) |>
+                     " standard de r\u00e9f\u00e9rence KDIGO (n = ", nrow(os6), ").")) |>
   autofit() |>
   theme_vanilla() |>
   bold(j = 1) |>
@@ -86,7 +100,7 @@ flex_croise <- flextable(tab_croise) |>
   add_footer_lines(paste0(
     "M+ = MRC selon les crit", "\u00e8", "res KDIGO (DFG < 60 mL/min/1,73 m", "\u00b2",
     " et/ou RAC ", "\u2265", " 3 mg/mmol), chronicit", "\u00e9",
-    " confirm", "\u00e9", "e par au moins 2 mesures concordantes espac",
+    " confirm", "\u00e9", "e par au moins 2 mesures espac",
     "\u00e9", "es de plus de 3 mois.")) |>
   add_footer_lines(paste0(
     "T+ = Predict-R orange ou rouge ; T- = Predict-R vert."))
@@ -95,6 +109,7 @@ flex_croise <- flextable(tab_croise) |>
 indics <- c("se", "sp", "pv.pos", "pv.neg")
 noms <- c("Sensibilit\u00e9", "Sp\u00e9cificit\u00e9", "VPP", "VPN")
 perf_sel <- perf_d[match(indics, perf_d$statistic), ]
+print(perf_sel[, c("statistic", "est", "lower", "upper")], digits = 4)
 
 tab_perf <- tibble(
   Indicateur = noms,
@@ -104,17 +119,14 @@ tab_perf <- tibble(
 )
 
 flex_perf <- flextable(tab_perf) |>
-  set_caption("Tableau 9. Performances diagnostiques de Predict-R (analyse exploratoire).") |>
+  set_caption(paste0("Tableau 9. Performances diagnostiques de Predict-R (analyse exploratoire, n = ",
+                     nrow(os6), ").")) |>
   autofit() |>
   theme_vanilla() |>
   bold(j = 1) |>
   bold(part = "header") |>
   align(j = 2:3, align = "center", part = "all") |>
-  add_footer_lines(paste0("IC 95 % : m", "\u00e9", "thode de Clopper-Pearson (binomiale exacte).")) |>
-  add_footer_lines(paste0("Analyse exploratoire : biais de v", "\u00e9",
-                          "rification (gold standard disponible uniquement chez les patients ",
-                          "ayant d", "\u00e9", "j", "\u00e0", " b", "\u00e9",
-                          "n", "\u00e9", "fici", "\u00e9", " d'un bilan biologique)."))
+  add_footer_lines(paste0("IC 95 % : m", "\u00e9", "thode de Clopper-Pearson"))
 
 # --- Export ---
 save_as_docx(
